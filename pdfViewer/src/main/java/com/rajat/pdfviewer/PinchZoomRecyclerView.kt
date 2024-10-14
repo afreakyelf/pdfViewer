@@ -1,11 +1,13 @@
 package com.rajat.pdfviewer
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
+import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.recyclerview.widget.RecyclerView
 
 class PinchZoomRecyclerView : RecyclerView {
@@ -16,6 +18,7 @@ class PinchZoomRecyclerView : RecyclerView {
     private var mScaleFactor = 1f
     private var mIsZoomEnabled = true
     private var mMaxZoom = MAX_ZOOM
+    private var mZoomDuration = ZOOM_DURATION
     private var maxWidth = 0.0f
     private var maxHeight = 0.0f
     private var mLastTouchX = 0f
@@ -107,16 +110,6 @@ class PinchZoomRecyclerView : RecyclerView {
                 }
             }
             MotionEvent.ACTION_CANCEL -> mActivePointerId = INVALID_POINTER_ID
-            MotionEvent.ACTION_POINTER_UP -> {
-                val pointerIndex = ev.actionIndex
-                val pointerId = ev.getPointerId(pointerIndex)
-                if (pointerId == mActivePointerId) {
-                    val newPointerIndex = if (pointerIndex == 0) 1 else 0
-                    mLastTouchX = ev.getX(newPointerIndex)
-                    mLastTouchY = ev.getY(newPointerIndex)
-                    mActivePointerId = ev.getPointerId(newPointerIndex)
-                }
-            }
             MotionEvent.ACTION_SCROLL -> {
                 val dy = ev.getAxisValue(MotionEvent.AXIS_VSCROLL) * mScaleFactor
                 mPosY += dy
@@ -179,25 +172,14 @@ class PinchZoomRecyclerView : RecyclerView {
         }
     }
 
-
-
-
-
-    private fun resetZoom() {
-        mScaleFactor = 1f
-        mPosX = 0f
-        mPosY = 0f
-        invalidate()
-    }
-
     private fun clampPosition() {
         // Calculate the boundaries considering the scaled size of the RecyclerView
         val contentWidth = width * mScaleFactor
         val contentHeight = height * mScaleFactor
 
         // Calculate the maximum allowed translation
-        val maxPosX = if (contentWidth > width) (contentWidth - width) / 2 else 0f
-        val maxPosY = if (contentHeight > height) (contentHeight - height) / 2 else 0f
+        val maxPosX = if (contentWidth > width) contentWidth - width else 0f
+        val maxPosY = if (contentHeight > height) contentHeight - height else 0f
 
         // Clamp the translations to ensure content does not move too far
         mPosX = Math.min(maxPosX, Math.max(-maxPosX, mPosX))
@@ -211,31 +193,68 @@ class PinchZoomRecyclerView : RecyclerView {
     private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
         override fun onDoubleTap(e: MotionEvent): Boolean {
             if (!mIsZoomEnabled) return false
-
             if (mScaleFactor > 1f) {
-                resetZoom()
+                zoomOut(mZoomDuration)
             } else {
-                // Zoom towards the double-tap location
-                val targetScale = mMaxZoom
-                val scaleDelta = targetScale / mScaleFactor
-
-                mScaleFactor = targetScale
-
-                // Adjust position so that it scales towards the double-tap location
-                mPosX -= (e.x - mPosX) * (1 - scaleDelta)
-                mPosY -= (e.y - mPosY) * (1 - scaleDelta)
-
-                clampPosition()
+                zoomIn(mMaxZoom, e.x, e.y, mZoomDuration)
             }
-
-            invalidate()
             return true
+        }
+
+        private fun zoomIn(targetScale: Float, focusX: Float, focusY: Float, animateDuration: Long) {
+
+            val startScale = mScaleFactor
+
+            val startX = mPosX
+            val startY = mPosY
+
+            ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = animateDuration
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    val animatedValue = animation.animatedValue as Float
+                    val scale = (targetScale - startScale) * animatedValue + startScale
+                    val scaleDelta = scale / startScale
+                    mScaleFactor = scale
+                    mPosX = startX - (focusX - startX) * (scaleDelta - 1)
+                    mPosY = startY - (focusY - startY) * (scaleDelta - 1)
+
+                    clampPosition()
+                    invalidate()
+                }
+                start()
+            }
+        }
+
+        private fun zoomOut(animateDuration: Long) {
+            val startScale = mScaleFactor
+            val targetScale = 1f
+            val startX = mPosX
+            val startY = mPosY
+
+            ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = animateDuration
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    val animatedValue = animation.animatedValue as Float
+                    val scale = (targetScale - startScale) * animatedValue + startScale
+                    mScaleFactor = scale
+
+                    val scaleDelta = 1 - (scale - startScale) / (targetScale - startScale)
+                    mPosX = startX * scaleDelta
+                    mPosY = startY * scaleDelta
+
+                    clampPosition()
+                    invalidate()
+                }
+                start()
+            }
         }
     }
 
     companion object {
         private const val INVALID_POINTER_ID = -1
-        private const val MAX_SCALE = 3.0f
         private const val MAX_ZOOM = 3.0f
+        private const val ZOOM_DURATION = 300L
     }
 }
