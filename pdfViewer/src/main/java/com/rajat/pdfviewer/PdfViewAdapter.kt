@@ -55,7 +55,7 @@ internal class PdfViewAdapter(
                 pageLoadingLayout.pdfViewPageLoadingProgress.visibility = if (enableLoadingForPages) View.VISIBLE else View.GONE
 
                 renderer.getPageDimensionsAsync(position) { size ->
-                    val width = (pageView.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels)
+                    val width = pageView.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels
                     val aspectRatio = size.width.toFloat() / size.height.toFloat()
                     val bitmapWidth = (width * (renderQuality.ordinal * aspectRatio + 1)).toInt()
                     val height = (width / aspectRatio).toInt()
