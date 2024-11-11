@@ -1,6 +1,5 @@
 package com.rajat.pdfviewer.compose
 
-import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -9,37 +8,37 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.rajat.pdfviewer.HeaderData
 import com.rajat.pdfviewer.PdfRendererView
-import java.io.File
+import com.rajat.pdfviewer.PdfSource
+import com.rajat.pdfviewer.PinchZoomRecyclerView
+import com.rajat.pdfviewer.RenderQuality
 
 @Composable
-fun PdfRendererViewCompose(
+fun Pdf(
     modifier: Modifier = Modifier,
-    url: String? = null,
-    file: File? = null,
-    uri: Uri? = null,
+    source: PdfSource,
+    renderQuality: RenderQuality = RenderQuality.LOW,
     headers: HeaderData = HeaderData(),
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
-    statusCallBack: PdfRendererView.StatusCallBack? = null
+    statusCallBack: PdfRendererView.StatusCallBack? = null,
+    scrolledToTop: (Boolean) -> Unit = {},
 ) {
     val lifecycleScope = lifecycleOwner.lifecycleScope
 
     AndroidView(
         factory = { context ->
             PdfRendererView(context).apply {
-                if (statusCallBack != null) {
-                    statusListener = statusCallBack
-                }
-                if (file != null) {
-                    initWithFile(file)
-                } else if (url != null) {
-                    initWithUrl(url, headers, lifecycleScope, lifecycleOwner.lifecycle)
-                } else if (uri != null) {
-                    initWithUri(uri)
+                if (statusCallBack != null) statusListener = statusCallBack
+                this.renderQuality = renderQuality
+                init(source, headers, lifecycleScope, lifecycleOwner.lifecycle)
+                (recyclerView as? PinchZoomRecyclerView)?.onTopChange = {
+                    scrolledToTop(it)
                 }
             }
         },
-        update = { view ->
-            // Update logic if needed
+        update = { pdfView ->
+            if (pdfView.pdfSource != source) {
+                pdfView.init(source, headers, lifecycleScope, lifecycleOwner.lifecycle)
+            }
         },
         modifier = modifier
     )

@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.rajat.pdfviewer.PdfRendererView
+import com.rajat.pdfviewer.PdfSource
 import com.rajat.pdfviewer.PdfViewerActivity
 import com.rajat.pdfviewer.util.saveTo
 import com.rajat.sample.pdfviewer.databinding.ActivityMainBinding
@@ -96,8 +97,8 @@ class MainActivity : AppCompatActivity() {
                     //Page change. Not require
                 }
             }
-            binding.pdfView.initWithUrl(
-                url = download_file_url2,
+            binding.pdfView.init(
+                source = PdfSource.FromUrl(download_file_url2),
                 lifecycleCoroutineScope = lifecycleScope,
                 lifecycle = lifecycle
             )

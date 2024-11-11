@@ -22,6 +22,8 @@ class PinchZoomRecyclerView : RecyclerView {
     private var mLastTouchY = 0f
     private var mPosX = 0f
     private var mPosY = 0f
+    private var onTop = true
+    var onTopChange: (Boolean) -> Unit = {}
 
     constructor(context: Context) : super(context) {
         initializeScaleDetector(context)
@@ -87,7 +89,13 @@ class PinchZoomRecyclerView : RecyclerView {
                     mPosX = (maxWidth - width * mScaleFactor).coerceAtLeast(mPosX.coerceAtMost(0f))
                     mPosY = (maxHeight - height * mScaleFactor).coerceAtLeast(mPosY.coerceAtMost(0f))
                 }
-
+                if (mPosY == 0f && !onTop) {
+                    onTopChange(true)
+                    onTop = true
+                } else if (mPosY != 0f && onTop) {
+                    onTopChange(false)
+                    onTop = false
+                }
                 mLastTouchX = x
                 mLastTouchY = y
                 invalidate()
