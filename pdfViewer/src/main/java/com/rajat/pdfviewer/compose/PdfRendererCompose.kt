@@ -21,6 +21,7 @@ fun Pdf(
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     statusCallBack: PdfRendererView.StatusCallBack? = null,
     scrolledToTop: (Boolean) -> Unit = {},
+    onPageRendered: (page: Int) -> Unit = {},
 ) {
     val lifecycleScope = lifecycleOwner.lifecycleScope
 
@@ -33,6 +34,7 @@ fun Pdf(
                 (recyclerView as? PinchZoomRecyclerView)?.onTopChange = {
                     scrolledToTop(it)
                 }
+                pageRenderListener = onPageRendered
             }
         },
         update = { pdfView ->

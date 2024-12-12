@@ -19,6 +19,7 @@ import com.rajat.pdfviewer.util.hide
 import com.rajat.pdfviewer.util.show
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.util.*
 import kotlin.compareTo
@@ -37,10 +38,17 @@ internal class PdfViewAdapter(
     private val pageSpacing: Rect,
     private val enableLoadingForPages: Boolean,
     private val renderQuality: RenderQuality,
+    private val onPageRendered: (position: Int) -> Unit,
 ) : RecyclerView.Adapter<PdfViewAdapter.PdfPageViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PdfPageViewHolder =
-        PdfPageViewHolder(ListItemPdfPageBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        PdfPageViewHolder(
+            ListItemPdfPageBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
+        )
 
     override fun getItemCount(): Int = renderer.getPageCount()
 
@@ -48,14 +56,17 @@ internal class PdfViewAdapter(
         holder.bind(position)
     }
 
-    inner class PdfPageViewHolder(private val itemBinding: ListItemPdfPageBinding) : RecyclerView.ViewHolder(itemBinding.root) {
+    inner class PdfPageViewHolder(private val itemBinding: ListItemPdfPageBinding) :
+        RecyclerView.ViewHolder(itemBinding.root) {
 
         fun bind(position: Int) {
             with(itemBinding) {
-                pageLoadingLayout.pdfViewPageLoadingProgress.visibility = if (enableLoadingForPages) View.VISIBLE else View.GONE
+                pageLoadingLayout.pdfViewPageLoadingProgress.visibility =
+                    if (enableLoadingForPages) View.VISIBLE else View.GONE
 
                 renderer.getPageDimensionsAsync(position) { size ->
-                    val width = pageView.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels
+                    val width = pageView.width.takeIf { it > 0 }
+                        ?: context.resources.displayMetrics.widthPixels
                     val aspectRatio = size.width.toFloat() / size.height.toFloat()
                     val bitmapWidth = (width * (renderQuality.ordinal * aspectRatio + 1)).toInt()
                     val height = (width / aspectRatio).toInt()
@@ -63,16 +74,26 @@ internal class PdfViewAdapter(
 
                     updateLayoutParams(height)
 
-                    val bitmap = CommonUtils.Companion.BitmapPool.getBitmap(bitmapWidth, maxOf(1, bitmapHeight))
-                    renderer.renderPage(position, bitmap) { success, pageNo, renderedBitmap ->
-                        if (success && pageNo == position) {
-                            CoroutineScope(Dispatchers.Main).launch {
-                                pageView.setImageBitmap(renderedBitmap ?: bitmap)
-                                applyFadeInAnimation(pageView)
-                                pageLoadingLayout.pdfViewPageLoadingProgress.visibility = View.GONE
+                    val bitmap = CommonUtils.Companion.BitmapPool.getBitmap(
+                        bitmapWidth,
+                        maxOf(1, bitmapHeight)
+                    )
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val renderResult = renderer.renderPage(position, bitmap)
+                        onPageRendered(renderResult.pageNo)
+                        when (renderResult) {
+                            is PdfRenderResult.Success -> if (renderResult.pageNo == position) {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    pageView.setImageBitmap(renderResult.bitmap)
+                                    applyFadeInAnimation(pageView)
+                                    pageLoadingLayout.pdfViewPageLoadingProgress.visibility =
+                                        View.GONE
+                                }
+                            } else {
+                                CommonUtils.Companion.BitmapPool.recycleBitmap(bitmap)
                             }
-                        } else {
-                            CommonUtils.Companion.BitmapPool.recycleBitmap(bitmap)
+
+                            else -> CommonUtils.Companion.BitmapPool.recycleBitmap(bitmap)
                         }
                     }
                 }

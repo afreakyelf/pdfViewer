@@ -50,6 +50,7 @@ class PdfRendererView @JvmOverloads constructor(
     private var pdfRendererCoreInitialised = false
     private var pageMargin: Rect = Rect(0, 0, 0, 0)
     var statusListener: StatusCallBack? = null
+    var pageRenderListener: (position: Int) -> Unit = {}
     private var positionToUseForState: Int = 0
     private var restoredScrollPosition: Int = NO_POSITION
     private var disableScreenshots: Boolean = false
@@ -173,7 +174,10 @@ class PdfRendererView @JvmOverloads constructor(
             renderer = pdfRendererCore,
             pageSpacing = pageMargin,
             enableLoadingForPages = enableLoadingForPages,
-            renderQuality = renderQuality
+            renderQuality = renderQuality,
+            onPageRendered = {
+                pageRenderListener(it)
+            }
         )
         val v = LayoutInflater.from(context).inflate(R.layout.pdf_rendererview, this, false)
         addView(v)

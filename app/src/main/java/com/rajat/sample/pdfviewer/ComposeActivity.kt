@@ -101,7 +101,7 @@ fun MyPdfScreenFromUri(modifier: Modifier = Modifier) {
 @Composable
 fun MyPdfScreenFromUri(uri: Uri, modifier: Modifier = Modifier) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    PdfRendererViewCompose(
+    Pdf(
         modifier = modifier,
         source = PdfSource.FromUri(uri),
         lifecycleOwner = lifecycleOwner,
@@ -136,7 +136,7 @@ fun MyPdfScreenFromUri(uri: Uri, modifier: Modifier = Modifier) {
 @Composable
 fun MyPdfScreenFromUrl(url: String, modifier: Modifier = Modifier) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    PdfRendererViewCompose(
+    Pdf(
         modifier = modifier,
         source = PdfSource.FromUrl(url),
         lifecycleOwner = lifecycleOwner,
@@ -173,7 +173,7 @@ fun MyPdfScreenFromUrl(url: String, modifier: Modifier = Modifier) {
 fun MyPdfScreenFromFile() {
     val lifecycleOwner = LocalLifecycleOwner.current
     val pdfFile = File("path/to/your/file.pdf")  // Replace with your file path
-    PdfRendererViewCompose(
+    Pdf(
         source = PdfSource.FromFile(pdfFile),
         lifecycleOwner = lifecycleOwner
     )
