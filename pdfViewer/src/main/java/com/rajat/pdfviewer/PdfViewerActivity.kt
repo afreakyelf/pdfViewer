@@ -357,8 +357,8 @@ class PdfViewerActivity : AppCompatActivity() {
         if (TextUtils.isEmpty(fileUrl)) onPdfError("")
         //Initiating PDf Viewer with URL
         try {
-            binding.pdfView.initWithUrl(
-                fileUrl!!,
+            binding.pdfView.init(
+                PdfSource.FromUrl(fileUrl!!),
                 headers,
                 lifecycleScope,
                 lifecycle = lifecycle

@@ -22,6 +22,8 @@ class PinchZoomRecyclerView : RecyclerView {
     private var mLastTouchY = 0f
     private var mPosX = 0f
     private var mPosY = 0f
+    private var onTop = true
+    var onTopChange: (Boolean) -> Unit = {}
 
     constructor(context: Context) : super(context) {
         initializeScaleDetector(context)
@@ -68,64 +70,72 @@ class PinchZoomRecyclerView : RecyclerView {
         mGestureDetector?.onTouchEvent(ev)
         mScaleDetector?.onTouchEvent(ev)
         when (ev.action and MotionEvent.ACTION_MASK) {
-            MotionEvent.ACTION_DOWN -> {
-                mLastTouchX = ev.x
-                mLastTouchY = ev.y
-                mActivePointerId = ev.getPointerId(0)
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val pointerIndex = ev.findPointerIndex(mActivePointerId)
-                val x = ev.getX(pointerIndex)
-                val y = ev.getY(pointerIndex)
-
-                if (mScaleFactor > 1f) {
-                    val dx = x - mLastTouchX
-                    val dy = y - mLastTouchY
-
-                    mPosX += dx
-                    mPosY += dy
-                    mPosX = (maxWidth - width * mScaleFactor).coerceAtLeast(mPosX.coerceAtMost(0f))
-                    mPosY = (maxHeight - height * mScaleFactor).coerceAtLeast(mPosY.coerceAtMost(0f))
-                }
-
-                mLastTouchX = x
-                mLastTouchY = y
-                invalidate()
-            }
-            MotionEvent.ACTION_POINTER_UP -> {
-                // Extract the index of the pointer that left the touch sensor
-                val pointerIndex = (ev.action and MotionEvent.ACTION_POINTER_INDEX_MASK) shr MotionEvent.ACTION_POINTER_INDEX_SHIFT
-                val pointerId = ev.getPointerId(pointerIndex)
-
-                if (pointerId == mActivePointerId) {
-                    // This was our active pointer going up. Choose a new active pointer and adjust accordingly.
-                    val newPointerIndex = if (pointerIndex == 0) 1 else 0
-
-                    mLastTouchX = ev.getX(newPointerIndex)
-                    mLastTouchY = ev.getY(newPointerIndex)
-                    mActivePointerId = ev.getPointerId(newPointerIndex)
-                }
-            }
-            MotionEvent.ACTION_CANCEL -> mActivePointerId = INVALID_POINTER_ID
-            MotionEvent.ACTION_POINTER_UP -> {
-                val pointerIndex = ev.actionIndex
-                val pointerId = ev.getPointerId(pointerIndex)
-                if (pointerId == mActivePointerId) {
-                    val newPointerIndex = if (pointerIndex == 0) 1 else 0
-                    mLastTouchX = ev.getX(newPointerIndex)
-                    mLastTouchY = ev.getY(newPointerIndex)
-                    mActivePointerId = ev.getPointerId(newPointerIndex)
-                }
-            }
-            MotionEvent.ACTION_SCROLL -> {
-                val dy = ev.getAxisValue(MotionEvent.AXIS_VSCROLL) * mScaleFactor
-                mPosY += dy
-                clampPosition()
-                invalidate()
-            }
+            MotionEvent.ACTION_DOWN -> down(ev)
+            MotionEvent.ACTION_MOVE -> move(ev)
+            MotionEvent.ACTION_POINTER_UP -> pointerUp(ev)
+            MotionEvent.ACTION_CANCEL -> cancel()
+            MotionEvent.ACTION_SCROLL -> scroll(ev)
         }
-
         return superHandled || mScaleFactor > 1f
+    }
+
+    private fun cancel() {
+        mActivePointerId = INVALID_POINTER_ID
+    }
+
+    private fun down(ev: MotionEvent) {
+        mLastTouchX = ev.x
+        mLastTouchY = ev.y
+        mActivePointerId = ev.getPointerId(0)
+    }
+
+    private fun scroll(ev: MotionEvent) {
+        val dy = ev.getAxisValue(MotionEvent.AXIS_VSCROLL) * mScaleFactor
+        mPosY += dy
+        clampPosition()
+        invalidate()
+    }
+
+    private fun pointerUp(ev: MotionEvent) {
+        // Extract the index of the pointer that left the touch sensor
+        val pointerIndex =
+            (ev.action and MotionEvent.ACTION_POINTER_INDEX_MASK) shr MotionEvent.ACTION_POINTER_INDEX_SHIFT
+        val pointerId = ev.getPointerId(pointerIndex)
+
+        if (pointerId == mActivePointerId) {
+            // This was our active pointer going up. Choose a new active pointer and adjust accordingly.
+            val newPointerIndex = if (pointerIndex == 0) 1 else 0
+
+            mLastTouchX = ev.getX(newPointerIndex)
+            mLastTouchY = ev.getY(newPointerIndex)
+            mActivePointerId = ev.getPointerId(newPointerIndex)
+        }
+    }
+
+    private fun move(ev: MotionEvent) {
+        val pointerIndex = ev.findPointerIndex(mActivePointerId)
+        val x = ev.getX(pointerIndex)
+        val y = ev.getY(pointerIndex)
+
+        if (mScaleFactor > 1f) {
+            val dx = x - mLastTouchX
+            val dy = y - mLastTouchY
+
+            mPosX += dx
+            mPosY += dy
+            mPosX = (maxWidth - width * mScaleFactor).coerceAtLeast(mPosX.coerceAtMost(0f))
+            mPosY = (maxHeight - height * mScaleFactor).coerceAtLeast(mPosY.coerceAtMost(0f))
+        }
+        if (mPosY == 0f && !onTop) {
+            onTopChange(true)
+            onTop = true
+        } else if (mPosY != 0f && onTop) {
+            onTopChange(false)
+            onTop = false
+        }
+        mLastTouchX = x
+        mLastTouchY = y
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
